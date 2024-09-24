@@ -1,0 +1,7 @@
+{
+    "sub_percent": 7,
+    "snap_interval": 5,
+    "single_budget": 5,
+    "total_budget": 30,
+    "vol_threshold": 500
+}
