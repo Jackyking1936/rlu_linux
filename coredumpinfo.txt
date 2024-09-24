@@ -1,0 +1,77 @@
+           PID: 35853 (python)
+           UID: 1000 (ec2-user)
+           GID: 1000 (ec2-user)
+        Signal: 11 (SEGV)
+     Timestamp: Fri 2024-09-20 13:46:30 CST (6min ago)
+  Command Line: /home/ec2-user/anaconda3/bin/python /home/ec2-user/rush_limit_up_linux/test.py
+    Executable: /home/ec2-user/anaconda3/bin/python3.12
+ Control Group: /user.slice/user-1000.slice/session-3.scope
+          Unit: session-3.scope
+         Slice: user-1000.slice
+       Session: 3
+     Owner UID: 1000 (ec2-user)
+       Boot ID: 150cc4f922a84c25bf9965c93966e795
+    Machine ID: ec21eb60040857d00bdd91954720f4e6
+      Hostname: ip-172-31-50-198.ap-northeast-1.compute.internal
+       Storage: /var/lib/systemd/coredump/core.python.1000.150cc4f922a84c25bf9965c93966e795.35853.1726811190000000.xz (present)
+  Size on Disk: 3.0M
+       Message: Process 35853 (python) of user 1000 dumped core.
+                
+                Module /home/ec2-user/anaconda3/bin/python3.12 without build-id.
+                Module /home/ec2-user/anaconda3/lib/python3.12/lib-dynload/unicodedata.cpython-312-x86_64-linux-gnu.so without build-id.
+                Module /home/ec2-user/anaconda3/lib/python3.12/site-packages/unicodedata2.cpython-312-x86_64-linux-gnu.so without build-id.
+                Module /home/ec2-user/anaconda3/lib/python3.12/site-packages/unicodedata2.cpython-312-x86_64-linux-gnu.so
+                Module /home/ec2-user/anaconda3/lib/libzstd.so.1.5.5 without build-id.
+                Module /home/ec2-user/anaconda3/lib/libzstd.so.1.5.5
+                Module /home/ec2-user/anaconda3/lib/libstdc++.so.6.0.29 without build-id.
+                Module /home/ec2-user/anaconda3/lib/libstdc++.so.6.0.29
+                Module /home/ec2-user/anaconda3/lib/python3.12/lib-dynload/_multibytecodec.cpython-312-x86_64-linux-gnu.so without build-id.
+                Module /home/ec2-user/anaconda3/lib/liblzma.so.5.4.6 without build-id.
+                Module /home/ec2-user/anaconda3/lib/liblzma.so.5.4.6
+                Module /home/ec2-user/anaconda3/lib/python3.12/lib-dynload/_lzma.cpython-312-x86_64-linux-gnu.so without build-id.
+                Module /home/ec2-user/anaconda3/lib/libbz2.so.1.0.8 without build-id.
+                Module /home/ec2-user/anaconda3/lib/libbz2.so.1.0.8
+                Module /home/ec2-user/anaconda3/lib/python3.12/lib-dynload/_bz2.cpython-312-x86_64-linux-gnu.so without build-id.
+                Module /home/ec2-user/anaconda3/lib/python3.12/lib-dynload/zlib.cpython-312-x86_64-linux-gnu.so without build-id.
+                Module /home/ec2-user/anaconda3/lib/python3.12/lib-dynload/zlib.cpython-312-x86_64-linux-gnu.so
+                Module /home/ec2-user/anaconda3/lib/python3.12/lib-dynload/_json.cpython-312-x86_64-linux-gnu.so without build-id.
+                Module /home/ec2-user/anaconda3/lib/python3.12/lib-dynload/_blake2.cpython-312-x86_64-linux-gnu.so without build-id.
+                Module /home/ec2-user/anaconda3/lib/python3.12/lib-dynload/_blake2.cpython-312-x86_64-linux-gnu.so
+                Module /home/ec2-user/anaconda3/lib/python3.12/site-packages/zstandard/backend_c.cpython-312-x86_64-linux-gnu.so without build-id.
+                Module /home/ec2-user/anaconda3/lib/libcrypto.so.3 without build-id.
+                Module /home/ec2-user/anaconda3/lib/libcrypto.so.3
+                Module /home/ec2-user/anaconda3/lib/python3.12/lib-dynload/_queue.cpython-312-x86_64-linux-gnu.so without build-id.
+                Module /home/ec2-user/anaconda3/lib/python3.12/lib-dynload/_hashlib.cpython-312-x86_64-linux-gnu.so without build-id.
+                Module /home/ec2-user/anaconda3/lib/python3.12/lib-dynload/_hashlib.cpython-312-x86_64-linux-gnu.so
+                Module /home/ec2-user/anaconda3/lib/python3.12/site-packages/_brotli.cpython-312-x86_64-linux-gnu.so without build-id.
+                Module /home/ec2-user/anaconda3/lib/libssl.so.3 without build-id.
+                Module /home/ec2-user/anaconda3/lib/libssl.so.3
+                Module /home/ec2-user/anaconda3/lib/python3.12/lib-dynload/_ssl.cpython-312-x86_64-linux-gnu.so without build-id.
+                Module /home/ec2-user/anaconda3/lib/python3.12/site-packages/fubon_neo/_fubon_neo.abi3.so without build-id.
+                Module /home/ec2-user/anaconda3/lib/python3.12/site-packages/fubon_neo/_fubon_neo.abi3.so
+                Module /home/ec2-user/anaconda3/lib/python3.12/lib-dynload/_heapq.cpython-312-x86_64-linux-gnu.so without build-id.
+                Module /home/ec2-user/anaconda3/lib/libgcc_s.so.1 without build-id.
+                Module /home/ec2-user/anaconda3/lib/python3.12/lib-dynload/_datetime.cpython-312-x86_64-linux-gnu.so without build-id.
+                Module /home/ec2-user/anaconda3/lib/python3.12/lib-dynload/_datetime.cpython-312-x86_64-linux-gnu.so
+                Module /home/ec2-user/anaconda3/lib/python3.12/lib-dynload/_sha2.cpython-312-x86_64-linux-gnu.so without build-id.
+                Module /home/ec2-user/anaconda3/lib/python3.12/lib-dynload/_random.cpython-312-x86_64-linux-gnu.so without build-id.
+                Module /home/ec2-user/anaconda3/lib/python3.12/lib-dynload/_random.cpython-312-x86_64-linux-gnu.so
+                Module /home/ec2-user/anaconda3/lib/python3.12/lib-dynload/_bisect.cpython-312-x86_64-linux-gnu.so without build-id.
+                Module /home/ec2-user/anaconda3/lib/python3.12/lib-dynload/_bisect.cpython-312-x86_64-linux-gnu.so
+                Module /home/ec2-user/anaconda3/lib/python3.12/lib-dynload/_struct.cpython-312-x86_64-linux-gnu.so without build-id.
+                Module /home/ec2-user/anaconda3/lib/python3.12/lib-dynload/_struct.cpython-312-x86_64-linux-gnu.so
+                Module /home/ec2-user/anaconda3/lib/libz.so.1.2.13 without build-id.
+                Module /home/ec2-user/anaconda3/lib/libz.so.1.2.13
+                Module /home/ec2-user/anaconda3/lib/python3.12/lib-dynload/binascii.cpython-312-x86_64-linux-gnu.so without build-id.
+                Module /home/ec2-user/anaconda3/lib/python3.12/lib-dynload/_opcode.cpython-312-x86_64-linux-gnu.so without build-id.
+                Module /home/ec2-user/anaconda3/lib/python3.12/lib-dynload/array.cpython-312-x86_64-linux-gnu.so without build-id.
+                Module /home/ec2-user/anaconda3/lib/python3.12/lib-dynload/array.cpython-312-x86_64-linux-gnu.so
+                Module /home/ec2-user/anaconda3/lib/python3.12/lib-dynload/select.cpython-312-x86_64-linux-gnu.so without build-id.
+                Module /home/ec2-user/anaconda3/lib/python3.12/lib-dynload/_socket.cpython-312-x86_64-linux-gnu.so without build-id.
+                Module /home/ec2-user/anaconda3/lib/python3.12/lib-dynload/math.cpython-312-x86_64-linux-gnu.so without build-id.
+                Stack trace of thread 35858:
+                #0  0x00007f5cba432640 n/a (n/a + 0x0)
+                #1  0x00007f5cbc61d131 n/a (/home/ec2-user/anaconda3/lib/python3.12/site-packages/fubon_neo/_fubon_neo.abi3.so + 0x61d131)
+                #2  0x00007f5cbc5f1996 n/a (/home/ec2-user/anaconda3/lib/python3.12/site-packages/fubon_neo/_fubon_neo.abi3.so + 0x5f1996)
+                #3  0x00007f5cbc682354 n/a (/home/ec2-user/anaconda3/lib/libgcc_s.so.1 + 0x11354)
+                ELF object binary architecture: AMD x86-64
