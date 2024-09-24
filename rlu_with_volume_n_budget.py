@@ -269,7 +269,7 @@ def signal_handler(sig, frame):
     sys.exit(0)
 
 if __name__ == '__main__':
-    my_trader = rlu_trader('acc_config.json', 'trade_config.json')
+    my_trader = rlu_trader('my_acc_config.json', 'trade_config.json')
     signal.signal(signal.SIGINT, signal_handler)
 
     my_trader.keep_trade = True
