@@ -192,7 +192,7 @@ class rlu_trader():
                 if data['isTrial']:
                     return
             
-            print(event, data)
+            # print(event, data)
 
             if ('isLimitUpPrice' in data) and (symbol not in self.is_ordered):
                 if (self.single_budget <= (self.total_budget-self.used_budget)):
