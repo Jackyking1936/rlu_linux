@@ -5,5 +5,6 @@
     "total_budget": 30,
     "vol_threshold": 500,
     "keep_percent": 7,
-    "keep_sl_percent": 5
+    "keep_sl_percent": 5,
+    "general_sl_percent": -7
 }

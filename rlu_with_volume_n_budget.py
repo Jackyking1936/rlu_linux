@@ -10,6 +10,21 @@ from threading import Timer
 import signal
 import sys
 
+class fake_filled_data():
+    date="2023/09/15"
+    branch_no="6460"          
+    account="123"   
+    order_no="bA422"          
+    stock_no="00900"            
+    buy_sell=BSAction.Sell     
+    filled_no="00000000001"    
+    filled_avg_price=35.2      
+    filled_qty=1000
+    filled_price=35.2          
+    order_type=OrderType.Stock
+    filled_time="10:31:00.931"  
+    user_def=None
+
 class RepeatTimer(Timer):
     def run(self):
         self.function(*self.args, **self.kwargs)
@@ -65,8 +80,12 @@ class rlu_trader():
 
         self.subscribed_ids = {}
         self.is_ordered = {}
+        self.rlu_in_filled = {}
+        self.sl_triggered = {}
         self.used_budget = 0
         self.order_tag = 'rlu'
+        self.sl_tag = 'rlu_sl'
+        self.sell_tag = 'rlu_out'
         self.fake_price_cnt = 0
         self.keep_trade = True
         self.last_day_inv = {}
@@ -79,7 +98,41 @@ class rlu_trader():
         self.snapshot_timer = RepeatTimer(self.snap_interval, self.snapshot_n_subscribe)
         self.snapshot_timer.name = 'snapshot_thread'
         self.snapshot_timer.start()
-    
+
+        self.sdk.set_on_filled(self.trade_on_filled)
+
+
+    def trade_on_filled(self, code, content):
+        if code:
+            self.logger.error(f"Filled Error: {code}, Content: {content}")
+            return
+        
+        if content.account == self.active_acc.account:
+            symbol = content.stock_no
+
+            if content.user_def == self.order_tag:
+                if symbol in self.keep_inv:
+                    self.keep_inv[symbol]+=content.filled_qty
+                    self.logger.info(f"{symbol} 成功加碼，現在持倉量 {self.keep_inv[symbol]}")
+                elif symbol in self.rlu_in_filled:
+                    self.rlu_in_filled[symbol]['filled_qty'] += content.filled_qty
+                else:
+                    self.rlu_in_filled[symbol] = {}
+                    self.rlu_in_filled[symbol]['filled_price'] = content.filled_price
+                    self.rlu_in_filled[symbol]['filled_qty'] = content.filled_qty
+
+                self.logger.info(f"{symbol} buy filled, qty: {content.filled_qty}, filled_price: {content.filled_price}")
+
+            elif content.user_def == self.sell_tag:
+                self.logger.info(f"{symbol} sell filled, qty: {content.filled_qty}, filled_price: {content.filled_price}")
+
+            elif content.user_def == self.sl_tag:
+                if symbol in self.keep_inv:
+                    self.logger.info(f"{symbol} 加碼失敗，sl_qty/keep_qty:{content.filled_qty}/{self.keep_inv[symbol]}")
+                elif symbol in self.rlu_in_filled:
+                    self.logger.info(f"{symbol} 當沖停損，sl_qty/rlu_in_qty:{content.filled_qty}/{self.rlu_in_filled[symbol]['filled_qty']}, sl_price:{content.filled_price}")
+                self.logger.info(f"{symbol} sl filled, qty:{content.filled_qty}, filled_price:{content.filled_price}")
+
     def read_inv_and_subscribe(self):
         with open("last_day_inv.json", "r") as file:
             self.last_day_inv = json.load(file)
@@ -202,7 +255,7 @@ class rlu_trader():
                         self.used_budget+=self.keep_inv[symbol]*self.inv_avg_price[symbol]
                         self.logger.info(f"{symbol}...漲幅:{up_percent} add to keep_inv list, use budget {self.keep_inv[symbol]*self.inv_avg_price[symbol]}")
                     else:
-                        sell_res = self.sell_market_order(symbol, self.last_day_inv[symbol], "rlu_out")
+                        sell_res = self.sell_market_order(symbol, self.last_day_inv[symbol], self.sell_tag)
                         if sell_res.is_success:
                             self.logger.info(f"{symbol}...漲幅:{up_percent}, 開盤賣出發送成功，單號: {sell_res.data.order_no}")
                         else:
@@ -225,9 +278,6 @@ class rlu_trader():
                                     self.logger.info(symbol+"...市價單發送成功，單號: "+order_res.data.order_no)
                                     self.is_ordered[symbol] = buy_qty
                                     self.used_budget+=buy_qty*data['price']
-                                    if symbol in self.keep_inv:
-                                        self.keep_inv[symbol]+=buy_qty
-                                        self.logger.info(f"{symbol} 成功加碼，現在持倉量 {self.keep_inv[symbol]}")
                                 else:
                                     self.logger.error(symbol+"...市價單發送失敗...")
                                     self.logger.error(str(order_res.message))
@@ -236,18 +286,30 @@ class rlu_trader():
                 else:
                     self.logger.info(symbol+" 總額度超限 "+"已使用額度/總額度: "+str(self.used_budget)+'/'+str(self.total_budget))
             
-            if symbol in self.keep_inv:
-                chg_percent = (data['price']-self.inv_ref_price[symbol])/self.inv_ref_price[symbol]*100
-                if  chg_percent < self.keep_sl_percent:
-                    sell_res = self.sell_market_order(symbol, self.keep_inv[symbol], "rlu_out")
-                    if sell_res.is_success:
-                        self.logger.info(f"{symbol}...漲幅:{chg_percent}, 留倉失敗, 停損發送成功, 單號: {sell_res.data.order_no}")
-                        self.keep_inv.pop(symbol)
-                    else:
-                        self.logger.error(f"{symbol}...留倉失敗, 停損發送失敗 Something wrong")
-                        self.logger.error(str(sell_res.message))
-                    
+            elif symbol not in self.sl_triggered: # 沒有停損過再檢查
+                if symbol in self.keep_inv:
+                    chg_percent = (data['price']-self.inv_ref_price[symbol])/self.inv_ref_price[symbol]*100
+                    if  chg_percent < self.keep_sl_percent:
+                        sell_res = self.sell_market_order(symbol, self.keep_inv[symbol], self.sl_tag)
+                        if sell_res.is_success:
+                            self.logger.info(f"{symbol}...漲幅:{chg_percent}, 留倉失敗, 停損發送成功, 單號: {sell_res.data.order_no}")
+                            self.sl_triggered[symbol] = self.keep_inv[symbol]
+                        else:
+                            self.logger.error(f"{symbol}...留倉失敗, 停損發送失敗 Something wrong")
+                            self.logger.error(str(sell_res.message))
+                
+                elif symbol in self.rlu_in_filled:
+                    down_percent = (data['price']-self.rlu_in_filled[symbol]['filled_price'])/self.rlu_in_filled[symbol]['filled_price']*100
+                    if down_percent <= self.general_sl_percent:
+                        sl_res = self.sell_market_order(symbol, self.rlu_in_filled[symbol]['filled_qty'], self.sl_tag)
+                        if sl_res.is_success:
+                            self.logger.info(f"{symbol}...sl triggered, cur down percent: {down_percent}, order no: {sl_res.data.order_no}")
+                            self.sl_triggered[symbol] = self.rlu_in_filled[symbol]['filled_qty']
+                        else:
+                            self.logger.error(f"{symbol} sl triggered, but something wrong")
+                            self.logger.error(f"{str(sl_res.message)}")
 
+                    
     def handle_connect(self):
         self.logger.info('market data connected')
     
@@ -270,6 +332,8 @@ class rlu_trader():
 
             all_movers_df = pd.concat([TSE_movers_df, OTC_movers_df])
             all_movers_df = all_movers_df[all_movers_df['lastUpdated']>self.open_unix]
+            all_movers_df = all_movers_df[all_movers_df['lastPrice']<(self.single_budget*12/10000)] # 篩掉超過單檔額度太多的股票不訂閱
+            # print(all_movers_df)
 
             new_subscribe = list(all_movers_df['symbol'])
             new_subscribe = list(set(new_subscribe).difference(set(self.subscribed_ids.keys())))
@@ -298,14 +362,10 @@ class rlu_trader():
         self.vol_threshold = config_json['vol_threshold']
         self.keep_percent = config_json['keep_percent']
         self.keep_sl_percent = config_json['keep_sl_percent']
+        self.general_sl_percent = config_json['general_sl_percent']
 
-        self.logger.info("Current subscribe percent: {}".format(self.sub_percent))
-        self.logger.info("Current snapshot interval in second: {}".format(self.snap_interval))
-        self.logger.info("Current single budget: {}".format(self.single_budget))
-        self.logger.info("Current total budget: {}".format(self.total_budget))
-        self.logger.info("Current volume threshold: {}".format(self.vol_threshold))
-        self.logger.info("Current keep percent: {}".format(self.keep_percent))
-        self.logger.info("Current keep sl percent: {}".format(self.keep_sl_percent))
+        self.logger.info(f"loaded config: {config_json}")
+
 
     def sdk_login(self):
         with open(self.login_path) as user_file:
@@ -346,6 +406,27 @@ class rlu_trader():
         if code == '300':
             self.logger.info('unknown error out, try login again')
 
+    # 測試用假裝有買入成交的按鈕slot function
+    def fake_buy_filled(self):
+        new_fake_buy = fake_filled_data()
+        new_fake_buy.stock_no = '2881'
+        new_fake_buy.buy_sell = BSAction.Buy
+        new_fake_buy.filled_qty = 2000
+        new_fake_buy.filled_price = 17
+        new_fake_buy.account = self.active_acc.account
+        new_fake_buy.user_def = self.order_tag
+        self.trade_on_filled(None, new_fake_buy)
+    
+    def fake_sl_filled(self):
+        new_fake_buy = fake_filled_data()
+        new_fake_buy.stock_no = '2881'
+        new_fake_buy.buy_sell = BSAction.Sell
+        new_fake_buy.filled_qty = 2000
+        new_fake_buy.filled_price = 17
+        new_fake_buy.account = self.active_acc.account
+        new_fake_buy.user_def = self.sl_tag
+        self.trade_on_filled(None, new_fake_buy)
+
 def signal_handler(sig, frame):
     print('Pressed Ctrl+C to exit')
     my_trader.close_trader()
@@ -360,6 +441,10 @@ if __name__ == '__main__':
         user_input = input("\"fake_ws\" for simulate websocket data to buy\n\"exit\" for close program\n")
         if user_input == 'fake_ws':
             my_trader.fake_ws_data()
+        elif user_input == 'fake_filled':
+            my_trader.fake_buy_filled()
+        elif user_input == 'fake_sl':
+            my_trader.fake_sl_filled()
         elif user_input == 'exit':
             my_trader.close_trader()
 
