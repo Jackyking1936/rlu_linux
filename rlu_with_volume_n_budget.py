@@ -194,6 +194,21 @@ class rlu_trader():
             
             # print(event, data)
 
+            if 'isOpen' in data:
+                if symbol in self.last_day_inv:
+                    up_percent = (data['price']-self.inv_ref_price[symbol])/self.inv_ref_price[symbol]*100
+                    if  up_percent > self.keep_percent:
+                        self.keep_inv[symbol] = self.last_day_inv[symbol]
+                        self.used_budget+=self.keep_inv[symbol]*self.inv_avg_price[symbol]
+                        self.logger.info(f"{symbol}...漲幅:{up_percent} add to keep_inv list, use budget {self.keep_inv[symbol]*self.inv_avg_price[symbol]}")
+                    else:
+                        sell_res = self.sell_market_order(symbol, self.last_day_inv[symbol], "rlu_out")
+                        if sell_res.is_success:
+                            self.logger.info(f"{symbol}...漲幅:{up_percent}, 開盤賣出發送成功，單號: {sell_res.data.order_no}")
+                        else:
+                            self.logger.error(symbol+"...市價單賣出發送失敗...")
+                            self.logger.error(str(sell_res.message))
+
             if ('isLimitUpPrice' in data) and (symbol not in self.is_ordered):
                 if (self.single_budget <= (self.total_budget-self.used_budget)):
                     if data['isLimitUpPrice']:
@@ -220,21 +235,6 @@ class rlu_trader():
                             self.logger.info(symbol+"...交易量不足，不下單...")
                 else:
                     self.logger.info(symbol+" 總額度超限 "+"已使用額度/總額度: "+str(self.used_budget)+'/'+str(self.total_budget))
-
-            if 'isOpen' in data:
-                if symbol in self.last_day_inv:
-                    up_percent = (data['price']-self.inv_ref_price[symbol])/self.inv_ref_price[symbol]*100
-                    if  up_percent > self.keep_percent:
-                        self.keep_inv[symbol] = self.last_day_inv[symbol]
-                        self.used_budget+=self.keep_inv[symbol]*self.inv_avg_price[symbol]
-                        self.logger.info(f"{symbol}...漲幅:{up_percent} add to keep_inv list, use budget {self.keep_inv[symbol]*self.inv_avg_price[symbol]}")
-                    else:
-                        sell_res = self.sell_market_order(symbol, self.last_day_inv[symbol], "rlu_out")
-                        if sell_res.is_success:
-                            self.logger.info(f"{symbol}...漲幅:{up_percent}, 開盤賣出發送成功，單號: {sell_res.data.order_no}")
-                        else:
-                            self.logger.error(symbol+"...市價單賣出發送失敗...")
-                            self.logger.error(str(sell_res.message))
             
             if symbol in self.keep_inv:
                 chg_percent = (data['price']-self.inv_ref_price[symbol])/self.inv_ref_price[symbol]*100
