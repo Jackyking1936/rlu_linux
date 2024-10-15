@@ -3,6 +3,8 @@ from fubon_neo.constant import TimeInForce, OrderType, PriceType, MarketType, BS
 
 import json
 import pandas as pd
+import sys
+import os
 
 sub_percent = -0.01
 price_threshold = 50
@@ -43,7 +45,5 @@ def snap_screener(sub_percent, price_threshold, vol_threshold):
     all_movers_df.reset_index(drop=True, inplace=True)
     print(all_movers_df[['symbol', 'name', 'lastPrice', 'changePercent', 'tradeVolume']])
 
-sub_percent = -0.001
-price_threshold = 50
-vol_threshold = 500
 snap_screener(sub_percent, price_threshold, vol_threshold)
+os._exit(0)
