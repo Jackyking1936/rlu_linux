@@ -292,7 +292,7 @@ class rlu_trader():
                     if  chg_percent < self.keep_sl_percent:
                         sell_res = self.sell_market_order(symbol, self.keep_inv[symbol], self.sl_tag)
                         if sell_res.is_success:
-                            self.logger.info(f"{symbol}...漲幅:{chg_percent}, 留倉失敗, 停損發送成功, 單號: {sell_res.data.order_no}")
+                            self.logger.info(f"{symbol}...現價:{data['price']}, 漲幅:{chg_percent}, 留倉失敗, 停損發送成功, 單號: {sell_res.data.order_no}")
                             self.sl_triggered[symbol] = self.keep_inv[symbol]
                         else:
                             self.logger.error(f"{symbol}...留倉失敗, 停損發送失敗 Something wrong")
@@ -303,7 +303,7 @@ class rlu_trader():
                     if down_percent <= self.general_sl_percent:
                         sl_res = self.sell_market_order(symbol, self.rlu_in_filled[symbol]['filled_qty'], self.sl_tag)
                         if sl_res.is_success:
-                            self.logger.info(f"{symbol}...sl triggered, cur down percent: {down_percent}, order no: {sl_res.data.order_no}")
+                            self.logger.info(f"{symbol}...sl triggered, cur price: {data['price']}, cur down percent: {down_percent}, order no: {sl_res.data.order_no}")
                             self.sl_triggered[symbol] = self.rlu_in_filled[symbol]['filled_qty']
                         else:
                             self.logger.error(f"{symbol} sl triggered, but something wrong")
