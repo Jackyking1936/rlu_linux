@@ -17,7 +17,7 @@ class fake_filled_data():
     order_no="bA422"          
     stock_no="00900"            
     buy_sell=BSAction.Sell     
-    filled_no="00000000001"    
+    filled_no="00000000001"
     filled_avg_price=35.2      
     filled_qty=1000
     filled_price=35.2          

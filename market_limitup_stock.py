@@ -6,8 +6,8 @@ import pandas as pd
 import sys
 import os
 
-sub_percent = -0.01
-price_threshold = 50
+sub_percent = 7
+price_threshold = 100
 vol_threshold = 500
 
 def sdk_login(login_path, sdk):
