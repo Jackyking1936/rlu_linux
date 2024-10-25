@@ -76,6 +76,17 @@ class rlu_inveotries_getter():
                 else:
                     rlu_inv[data.stock_no] = data.filled_qty
                     rlu_inv_avg_price[data.stock_no] = data.filled_avg_price
+            elif data.user_def =='rlu_sl':
+                if data.stock_no in rlu_inv:
+                    rlu_inv[data.stock_no] -=data.filled_qty
+                else:
+                    rlu_inv[data.stock_no] = -data.filled_qty
+                
+        for symbol in list(rlu_inv.keys()):
+            if rlu_inv[symbol] == 0:
+                rlu_inv.pop(symbol)
+                rlu_inv_avg_price.pop(symbol)
+
         return rlu_inv, rlu_inv_avg_price
 
 if __name__ == "__main__":

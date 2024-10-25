@@ -5,6 +5,8 @@ from fubon_neo.constant import TimeInForce, OrderType, PriceType, MarketType, BS
 import json
 import logging
 import pandas as pd
+import time
+import math
 from datetime import datetime
 from threading import Timer
 import signal
@@ -211,6 +213,7 @@ class rlu_trader():
         return order_res
 
     def handle_message(self, message):
+        recived_time = time.time()
         msg = json.loads(message)
         event = msg["event"]
         data = msg["data"]
@@ -246,6 +249,7 @@ class rlu_trader():
                     return
             
             # print(event, data)
+            tick_time = data['time']/1000000.0
 
             if 'isOpen' in data:
                 if symbol in self.last_day_inv:
@@ -255,8 +259,10 @@ class rlu_trader():
                         self.used_budget+=self.keep_inv[symbol]*self.inv_avg_price[symbol]
                         self.logger.info(f"{symbol}...漲幅:{up_percent} add to keep_inv list, use budget {self.keep_inv[symbol]*self.inv_avg_price[symbol]}")
                     else:
+                        self.logger.info(f"{symbol}...開盤賣出委託，委託 {self.last_day_inv[symbol]} 股")
                         sell_res = self.sell_market_order(symbol, self.last_day_inv[symbol], self.sell_tag)
                         if sell_res.is_success:
+                            self.logger.info(f"tick time:{datetime.fromtimestamp(tick_time)}, recived time: {datetime.fromtimestamp(recived_time)}, recived lag: {math.ceil((recived_time-tick_time)*1000)/1000}")
                             self.logger.info(f"{symbol}...漲幅:{up_percent}, 開盤賣出發送成功，單號: {sell_res.data.order_no}")
                         else:
                             self.logger.error(symbol+"...市價單賣出發送失敗...")
@@ -275,6 +281,7 @@ class rlu_trader():
                                 self.logger.info(symbol+'...委託'+str(buy_qty)+'股')
                                 order_res = self.buy_market_order(symbol, buy_qty, self.order_tag)
                                 if order_res.is_success:
+                                    self.logger.info(f"tick time:{datetime.fromtimestamp(tick_time)}, recived time: {datetime.fromtimestamp(recived_time)}, recived lag: {math.ceil((recived_time-tick_time)*1000)/1000}")
                                     self.logger.info(symbol+"...市價單發送成功，單號: "+order_res.data.order_no)
                                     self.is_ordered[symbol] = buy_qty
                                     self.used_budget+=buy_qty*data['price']
@@ -292,6 +299,7 @@ class rlu_trader():
                     if  chg_percent < self.keep_sl_percent:
                         sell_res = self.sell_market_order(symbol, self.keep_inv[symbol], self.sl_tag)
                         if sell_res.is_success:
+                            self.logger.info(f"tick time:{datetime.fromtimestamp(tick_time)}, recived time: {datetime.fromtimestamp(recived_time)}, recived lag: {math.ceil((recived_time-tick_time)*1000)/1000}")
                             self.logger.info(f"{symbol}...現價:{data['price']}, 漲幅:{chg_percent}, 留倉失敗, 停損發送成功, 單號: {sell_res.data.order_no}")
                             self.sl_triggered[symbol] = self.keep_inv[symbol]
                         else:
