@@ -494,6 +494,8 @@ if __name__ == '__main__':
             my_trader.fake_sl_filled()
         elif user_input == 'fake_disconnect':
             my_trader.wsstock.disconnect()
+        elif user_input == 'fake_trade_disconnect':
+            my_trader.sdk.logout()
         elif user_input == 'exit':
             my_trader.close_trader()
 
