@@ -45,6 +45,7 @@ class rlu_trader():
         self.single_budget = None
         self.total_budget = None
         self.vol_threshold = None
+        self.manully_log_out = False
 
         log_formatter = logging.Formatter("%(asctime)s.%(msecs)03d [%(threadName)s] [%(levelname)s]: %(message)s", datefmt = '%Y-%m-%d %H:%M:%S')
         self.logger = logging.getLogger("RLU")
@@ -67,6 +68,7 @@ class rlu_trader():
         self.load_confing()
 
         self.sdk.init_realtime(Mode.Speed)
+        
         self.reststock = self.sdk.marketdata.rest_client.stock
         self.wsstock = self.sdk.marketdata.websocket_client.stock
 
@@ -322,10 +324,25 @@ class rlu_trader():
         self.logger.info('market data connected')
     
     def handle_disconnect(self, code, message):
-        if not code and not message:
-            self.logger.info(f'WebSocket已停止')
+        self.logger.info(f"Websocket Disconnect, code: {code}, msg: {message}")
+        if self.manully_log_out:
+            pass
         else:
-            self.logger.info(f'market data disconnect: {code}, {message}')
+            self.sdk.init_realtime(Mode.Speed)
+            self.reststock = self.sdk.marketdata.rest_client.stock
+            self.wsstock = self.sdk.marketdata.websocket_client.stock
+
+            self.wsstock.on('message', self.handle_message)
+            self.wsstock.on('connect', self.handle_connect)
+            self.wsstock.on('disconnect', self.handle_disconnect)
+            self.wsstock.on('error', self.handle_error)
+            self.wsstock.connect()
+
+            self.wsstock.subscribe({
+                'channel':'trades',
+                'symbols': list(self.subscribed_ids.keys())
+            })
+            
     
     def handle_error(self, error):
         self.logger.error(f'market data error: {error}')
@@ -390,6 +407,7 @@ class rlu_trader():
     # 視窗關閉時要做的事，主要是關websocket連結
     def close_trader(self):
         # do stuff
+        self.manully_log_out = True
         self.logger.info("try exit, disconnect websocket...")
         self.wsstock.disconnect()
         if self.snapshot_timer.is_alive():
@@ -413,6 +431,27 @@ class rlu_trader():
         self.logger.info("Trade Callback "+str(code)+" "+str(content))
         if code == '300':
             self.logger.info('unknown error out, try login again')
+            self.manully_log_out = True
+            try:
+                self.wsstock.disconnect()
+            except Exception as e:
+                self.logger.error("unknown trade error, disconnect ws failed, exception: {e}")
+            
+            self.sdk_login()
+            self.sdk.init_realtime(Mode.Speed)
+            self.reststock = self.sdk.marketdata.rest_client.stock
+            self.wsstock = self.sdk.marketdata.websocket_client.stock
+
+            self.wsstock.on('message', self.handle_message)
+            self.wsstock.on('connect', self.handle_connect)
+            self.wsstock.on('disconnect', self.handle_disconnect)
+            self.wsstock.on('error', self.handle_error)
+            self.wsstock.connect()
+
+            self.wsstock.subscribe({
+                'channel':'trades',
+                'symbols': list(self.subscribed_ids.keys())
+            })
 
     # 測試用假裝有買入成交的按鈕slot function
     def fake_buy_filled(self):
@@ -453,6 +492,8 @@ if __name__ == '__main__':
             my_trader.fake_buy_filled()
         elif user_input == 'fake_sl':
             my_trader.fake_sl_filled()
+        elif user_input == 'fake_disconnect':
+            my_trader.wsstock.disconnect()
         elif user_input == 'exit':
             my_trader.close_trader()
 
