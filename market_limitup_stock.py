@@ -46,4 +46,5 @@ def snap_screener(sub_percent, price_threshold, vol_threshold):
     print(all_movers_df[['symbol', 'name', 'lastPrice', 'changePercent', 'tradeVolume']])
 
 snap_screener(sub_percent, price_threshold, vol_threshold)
+sdk.logout()
 os._exit(0)

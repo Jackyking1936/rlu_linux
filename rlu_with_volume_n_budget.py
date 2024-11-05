@@ -22,7 +22,7 @@ class fake_filled_data():
     filled_no="00000000001"
     filled_avg_price=35.2      
     filled_qty=1000
-    filled_price=35.2          
+    filled_price=35.2
     order_type=OrderType.Stock
     filled_time="10:31:00.931"  
     user_def=None
