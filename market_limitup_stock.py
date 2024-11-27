@@ -43,7 +43,7 @@ def snap_screener(sub_percent, price_threshold, vol_threshold):
     all_movers_df = all_movers_df[all_movers_df['lastPrice']<price_threshold]
     all_movers_df = all_movers_df[all_movers_df['tradeVolume']>vol_threshold]
     all_movers_df.reset_index(drop=True, inplace=True)
-    print(all_movers_df[['symbol', 'name', 'lastPrice', 'changePercent', 'tradeVolume']])
+    print(f"{all_movers_df[['symbol', 'name', 'lastPrice', 'changePercent', 'tradeVolume']]}")
 
 snap_screener(sub_percent, price_threshold, vol_threshold)
 sdk.logout()

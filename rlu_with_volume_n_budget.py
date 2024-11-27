@@ -14,13 +14,13 @@ import sys
 
 class fake_filled_data():
     date="2023/09/15"
-    branch_no="6460"          
-    account="123"   
-    order_no="bA422"          
-    stock_no="00900"            
-    buy_sell=BSAction.Sell     
+    branch_no="6460"
+    account="123"
+    order_no="bA422"
+    stock_no="00900"
+    buy_sell=BSAction.Sell
     filled_no="00000000001"
-    filled_avg_price=35.2      
+    filled_avg_price=35.2    
     filled_qty=1000
     filled_price=35.2
     order_type=OrderType.Stock
@@ -35,18 +35,8 @@ class RepeatTimer(Timer):
 
 class rlu_trader():
     def __init__(self, login_path, config_path):
-        self.login_path = login_path
-        self.config_path = config_path
-        self.sdk = FubonSDK()
-        self.sdk.set_on_event(self.trade_on_event)
-        self.active_acc = None
-        self.sub_percent = None
-        self.snap_interval = None
-        self.single_budget = None
-        self.total_budget = None
-        self.vol_threshold = None
-        self.manully_log_out = False
-
+        
+        # create logger
         log_formatter = logging.Formatter("%(asctime)s.%(msecs)03d [%(threadName)s] [%(levelname)s]: %(message)s", datefmt = '%Y-%m-%d %H:%M:%S')
         self.logger = logging.getLogger("RLU")
         self.logger.setLevel(logging.DEBUG)
@@ -63,9 +53,26 @@ class rlu_trader():
         console_handler.setFormatter(log_formatter)
         self.logger.addHandler(console_handler)
 
+        # get my_acc_cconfig.json and trade_config.json path
+        self.login_path = login_path
+        self.config_path = config_path
+
+        self.sdk = FubonSDK()
+        self.sdk.set_on_event(self.trade_on_event)
+        self.sdk.set_on_filled(self.trade_on_filled)
+
+        self.active_acc = None
+        self.sub_percent = None
+        self.snap_interval = None
+        self.single_budget = None
+        self.total_budget = None
+        self.vol_threshold = None
+        self.manully_log_out = False
+
+        # login sdk and loading trade config
         self.logger.info("current SDK version: {}".format(fubon_neo.__version__))
         self.sdk_login()
-        self.load_confing()
+        self.load_config()
 
         self.sdk.init_realtime(Mode.Speed)
         
@@ -78,12 +85,16 @@ class rlu_trader():
         self.wsstock.on('error', self.handle_error)
         self.wsstock.connect()
 
+        # open_time for snapshot filter, close_time for auto stop, sell_time for close unsatisfied position
         open_time = self.today_date.replace(hour=9, minute=0, second=0, microsecond=0)
         self.open_unix = int(datetime.timestamp(open_time)*1000000)
         self.close_time = self.today_date.replace(hour=13, minute=31, second=0, microsecond=0)
+        self.sell_time = self.today_date.replace(hour=9, minute=20, second=0, microsecond=0)
+        self.sell_unix = int(datetime.timestamp(self.sell_time)*1000000)
 
         self.subscribed_ids = {}
         self.is_ordered = {}
+        self.is_rlu_out = {}
         self.rlu_in_filled = {}
         self.sl_triggered = {}
         self.used_budget = 0
@@ -91,7 +102,6 @@ class rlu_trader():
         self.sl_tag = 'rlu_sl'
         self.sell_tag = 'rlu_out'
         self.fake_price_cnt = 0
-        self.keep_trade = True
         self.last_day_inv = {}
         self.inv_avg_price = {}
         self.inv_ref_price = {}
@@ -103,8 +113,6 @@ class rlu_trader():
         self.snapshot_timer.name = 'snapshot_thread'
         self.snapshot_timer.start()
 
-        self.sdk.set_on_filled(self.trade_on_filled)
-
 
     def trade_on_filled(self, code, content):
         if code:
@@ -115,10 +123,7 @@ class rlu_trader():
             symbol = content.stock_no
 
             if content.user_def == self.order_tag:
-                if symbol in self.keep_inv:
-                    self.keep_inv[symbol]+=content.filled_qty
-                    self.logger.info(f"{symbol} 成功加碼，現在持倉量 {self.keep_inv[symbol]}")
-                elif symbol in self.rlu_in_filled:
+                if symbol in self.rlu_in_filled:
                     self.rlu_in_filled[symbol]['filled_qty'] += content.filled_qty
                 else:
                     self.rlu_in_filled[symbol] = {}
@@ -129,11 +134,11 @@ class rlu_trader():
 
             elif content.user_def == self.sell_tag:
                 self.logger.info(f"{symbol} sell filled, qty: {content.filled_qty}, filled_price: {content.filled_price}")
+                if symbol in self.keep_inv:
+                    self.used_budget-=self.keep_inv[symbol]*self.inv_avg_price[symbol]
 
             elif content.user_def == self.sl_tag:
-                if symbol in self.keep_inv:
-                    self.logger.info(f"{symbol} 加碼失敗，sl_qty/keep_qty:{content.filled_qty}/{self.keep_inv[symbol]}")
-                elif symbol in self.rlu_in_filled:
+                if symbol in self.rlu_in_filled:
                     self.logger.info(f"{symbol} 當沖停損，sl_qty/rlu_in_qty:{content.filled_qty}/{self.rlu_in_filled[symbol]['filled_qty']}, sl_price:{content.filled_price}")
                 self.logger.info(f"{symbol} sl filled, qty:{content.filled_qty}, filled_price:{content.filled_price}")
 
@@ -251,24 +256,9 @@ class rlu_trader():
                     return
             
             # print(event, data)
-            tick_time = data['time']/1000000.0
-
-            if 'isOpen' in data:
-                if symbol in self.last_day_inv:
-                    up_percent = (data['price']-self.inv_ref_price[symbol])/self.inv_ref_price[symbol]*100
-                    if  up_percent > self.keep_percent:
-                        self.keep_inv[symbol] = self.last_day_inv[symbol]
-                        self.used_budget+=self.keep_inv[symbol]*self.inv_avg_price[symbol]
-                        self.logger.info(f"{symbol}...漲幅:{up_percent} add to keep_inv list, use budget {self.keep_inv[symbol]*self.inv_avg_price[symbol]}")
-                    else:
-                        self.logger.info(f"{symbol}...開盤賣出委託，委託 {self.last_day_inv[symbol]} 股")
-                        sell_res = self.sell_market_order(symbol, self.last_day_inv[symbol], self.sell_tag)
-                        if sell_res.is_success:
-                            self.logger.info(f"tick time:{datetime.fromtimestamp(tick_time)}, recived time: {datetime.fromtimestamp(recived_time)}, recived lag: {math.ceil((recived_time-tick_time)*1000)/1000}")
-                            self.logger.info(f"{symbol}...漲幅:{up_percent}, 開盤賣出發送成功，單號: {sell_res.data.order_no}")
-                        else:
-                            self.logger.error(symbol+"...市價單賣出發送失敗...")
-                            self.logger.error(str(sell_res.message))
+            tick_time = data['time']/1000000.0 # convenient to transfer to datetime
+            tick_time_origin = data['time'] # for sell time comparison
+            # print(tick_time_origin, self.sell_unix)
 
             if ('isLimitUpPrice' in data) and (symbol not in self.is_ordered):
                 if (self.single_budget <= (self.total_budget-self.used_budget)):
@@ -296,19 +286,7 @@ class rlu_trader():
                     self.logger.info(symbol+" 總額度超限 "+"已使用額度/總額度: "+str(self.used_budget)+'/'+str(self.total_budget))
             
             elif symbol not in self.sl_triggered: # 沒有停損過再檢查
-                if symbol in self.keep_inv:
-                    chg_percent = (data['price']-self.inv_ref_price[symbol])/self.inv_ref_price[symbol]*100
-                    if  chg_percent < self.keep_sl_percent:
-                        sell_res = self.sell_market_order(symbol, self.keep_inv[symbol], self.sl_tag)
-                        if sell_res.is_success:
-                            self.logger.info(f"tick time:{datetime.fromtimestamp(tick_time)}, recived time: {datetime.fromtimestamp(recived_time)}, recived lag: {math.ceil((recived_time-tick_time)*1000)/1000}")
-                            self.logger.info(f"{symbol}...現價:{data['price']}, 漲幅:{chg_percent}, 留倉失敗, 停損發送成功, 單號: {sell_res.data.order_no}")
-                            self.sl_triggered[symbol] = self.keep_inv[symbol]
-                        else:
-                            self.logger.error(f"{symbol}...留倉失敗, 停損發送失敗 Something wrong")
-                            self.logger.error(str(sell_res.message))
-                
-                elif symbol in self.rlu_in_filled:
+                if symbol in self.rlu_in_filled:
                     down_percent = (data['price']-self.rlu_in_filled[symbol]['filled_price'])/self.rlu_in_filled[symbol]['filled_price']*100
                     if down_percent <= self.general_sl_percent:
                         sl_res = self.sell_market_order(symbol, self.rlu_in_filled[symbol]['filled_qty'], self.sl_tag)
@@ -318,6 +296,32 @@ class rlu_trader():
                         else:
                             self.logger.error(f"{symbol} sl triggered, but something wrong")
                             self.logger.error(f"{str(sl_res.message)}")
+            
+            if symbol in self.last_day_inv:
+                chg_percent = (data['price']-self.inv_ref_price[symbol])/self.inv_ref_price[symbol]*100
+                if tick_time_origin > self.sell_unix:
+                    if chg_percent < self.keep_percent and symbol not in self.is_rlu_out:
+                        sell_res = self.sell_market_order(symbol, self.last_day_inv[symbol], self.sell_tag)
+                        if sell_res.is_success:
+                            self.is_rlu_out[symbol] = self.last_day_inv[symbol]
+                            self.logger.info(f"tick time:{datetime.fromtimestamp(tick_time)}, recived time: {datetime.fromtimestamp(recived_time)}, recived lag: {math.ceil((recived_time-tick_time)*1000)/1000}")
+                            self.logger.info(f"{symbol}...漲幅:{chg_percent}, 賣出時間點平倉, 單號: {sell_res.data.order_no}")
+                        else:
+                            self.logger.error(symbol+"...市價單賣出發送失敗...")
+                            self.logger.error(str(sell_res.message))
+                    elif chg_percent >= self.keep_percent and symbol not in self.keep_inv and symbol not in self.is_rlu_out:
+                        self.keep_inv[symbol] = self.last_day_inv[symbol]
+                        self.used_budget+=self.last_day_inv[symbol]*self.inv_avg_price[symbol]
+                else:
+                    if  chg_percent < self.keep_sl_percent and symbol not in self.is_rlu_out:
+                        sell_res = self.sell_market_order(symbol, self.last_day_inv[symbol], self.sell_tag)
+                        if sell_res.is_success:
+                            self.is_rlu_out[symbol] = self.last_day_inv[symbol]
+                            self.logger.info(f"tick time:{datetime.fromtimestamp(tick_time)}, recived time: {datetime.fromtimestamp(recived_time)}, recived lag: {math.ceil((recived_time-tick_time)*1000)/1000}")
+                            self.logger.info(f"{symbol}...漲幅:{chg_percent}, 賣出時間前停損, 單號: {sell_res.data.order_no}")
+                        else:
+                            self.logger.error(symbol+"...市價單賣出發送失敗...")
+                            self.logger.error(str(sell_res.message))
 
                     
     def handle_connect(self):
@@ -376,7 +380,7 @@ class rlu_trader():
         except Exception as e:
             self.logger.error("snapshot unknown error down, exception:{}".format(e))
 
-    def load_confing(self):
+    def load_config(self):
         with open(self.config_path) as config_file:
             config_json = json.load(config_file)
 
@@ -425,7 +429,6 @@ class rlu_trader():
         
         self.sdk.logout()
         self.logger.info("logout sdk finish")
-        self.keep_trade = False
     
     def trade_on_event(self, code, content):
         self.logger.info("Trade Callback "+str(code)+" "+str(content))
