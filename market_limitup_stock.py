@@ -9,18 +9,20 @@ import os
 sub_percent = 7
 price_threshold = 100
 vol_threshold = 500
-
 def sdk_login(login_path, sdk):
     with open(login_path) as user_file:
         acc_json = json.load(user_file)
 
     accounts = sdk.login(acc_json['id'], acc_json['pwd'], acc_json['cert_path'], acc_json['cert_pwd'])
-
-    active_acc = None
-    for acc in accounts.data:
-        if acc.account == acc_json['target_acc']:
-            active_acc = acc
-    return active_acc    
+    if accounts.is_success:
+        active_acc = None
+        for acc in accounts.data:
+            if acc.account == acc_json['target_acc']:
+                active_acc = acc
+        return active_acc
+    else:
+        print(accounts.message)
+        return None
 
 sdk = FubonSDK()
 active_acc = sdk_login('my_acc_config.json', sdk)
